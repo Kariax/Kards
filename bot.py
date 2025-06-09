@@ -7,46 +7,50 @@ from dotenv import load_dotenv
 import asyncio
 from collections import Counter
 
-load_dotenv()  # Carga las variables desde .env
+load_dotenv()  # Carga las variables del archivo .env
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-# Funciones para leer y guardar colecciones
+# Función para leer las colecciones de cartas de los usuarios desde el archivo JSON
 def cargar_colecciones():
     try:
         with open("colecciones.json", "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
+        # Si el archivo no existe, retorna un diccionario vacío
         return {}
 
+# Función para guardar las colecciones de cartas de los usuarios en el archivo JSON
 def guardar_colecciones():
     with open("colecciones.json", "w", encoding="utf-8") as f:
         json.dump(colecciones, f, ensure_ascii=False, indent=2)
 
-# Cargar variables de entorno
-load_dotenv()
-TOKEN = os.getenv("DISCORD_TOKEN")
-
-# Leer cartas desde JSON
+# Carga las cartas disponibles desde el archivo JSON
 with open("cartas.json", "r", encoding="utf-8") as file:
     cartas = json.load(file)
 
-# Leer colecciones guardadas
+# Carga las colecciones de los usuarios
 colecciones = cargar_colecciones()
 
-# Intents y configuración del bot
-intents = discord.Intents.all()
+# Configuración de los intents para el bot de Discord (solo los necesarios)
+intents = discord.Intents.default()
+intents.members = True  # Para comandos que usan miembros (como intercambiar)
+intents.message_content = True  # Para leer el contenido de los mensajes
+
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
+    # Mensaje en consola cuando el bot se conecta correctamente
     print(f"✅ Bot conectado como {bot.user.name}")
 
 @bot.command()
 async def ping(ctx):
+    # Comando simple para comprobar si el bot está activo
     await ctx.send("🏓 ¡Estoy vivo!")
 
 @bot.command(name="carta")
 async def carta(ctx):
+    # Da una carta aleatoria al usuario y la guarda en su colección
     user_id = str(ctx.author.id)
     carta = random.choice(cartas)
     colecciones.setdefault(user_id, []).append(carta["nombre"])
@@ -65,6 +69,7 @@ async def carta(ctx):
 
 @bot.command(name="coleccion")
 async def coleccion(ctx):
+    # Muestra todas las cartas que tiene el usuario en su colección
     user_id = str(ctx.author.id)
     cartas_usuario = colecciones.get(user_id, [])
 
@@ -82,15 +87,14 @@ async def coleccion(ctx):
 
 @bot.command(name="ver")
 async def ver_carta(ctx, *, nombre: str):
+    # Permite buscar y ver detalles de una carta por nombre (parcial o completo)
     nombre = nombre.lower()
-    
-    # Buscar cartas cuyo nombre contenga el fragmento ingresado
     coincidencias = [c for c in cartas if nombre in c["nombre"].lower()]
 
     if not coincidencias:
         await ctx.send(f"❌ No se encontró ninguna carta que coincida con **{nombre}**.")
         return
-    
+
     if len(coincidencias) > 1:
         lista = "\n".join(f"• {c['nombre']}" for c in coincidencias)
         await ctx.send(
@@ -113,8 +117,9 @@ async def ver_carta(ctx, *, nombre: str):
 
 @bot.command(name="sobre")
 async def sobre(ctx):
+    # Da al usuario un "sobre" con 3 cartas aleatorias (pueden repetirse)
     user_id = str(ctx.author.id)
-    cartas_sobre = random.choices(cartas, k=3)  # 3 cartas aleatorias (con posible repetición)
+    cartas_sobre = random.choices(cartas, k=3)
 
     colecciones.setdefault(user_id, [])
     for carta in cartas_sobre:
@@ -126,16 +131,16 @@ async def sobre(ctx):
         title=f"🎁 ¡Has abierto un sobre con 3 cartas!",
         color=discord.Color.orange()
     )
-    
-    # Agregar cada carta como campo en el embed con su imagen (imagen como thumbnail en embed no es múltiple, ponemos al final la del último)
+
+    # Añade cada carta como campo en el embed
     for idx, carta in enumerate(cartas_sobre, 1):
         embed.add_field(
             name=f"Carta {idx}: {carta['nombre']}",
             value=f"🔹 Tipo: {carta['tipo']}\n⭐ Rareza: {carta['rareza']}",
             inline=False
         )
-    
-    # Imagen del último ítem para ilustrar el sobre (Discord no permite varias imágenes)
+
+    # Muestra la imagen de la última carta del sobre
     if cartas_sobre[-1].get("imagen"):
         embed.set_image(url=cartas_sobre[-1]["imagen"])
 
@@ -144,6 +149,7 @@ async def sobre(ctx):
 
 @bot.command(name="intercambiar")
 async def intercambiar(ctx, jugador: discord.Member, carta_mia: str, carta_suya: str):
+    # Permite intercambiar cartas entre dos usuarios con confirmación por reacción
     user1 = str(ctx.author.id)
     user2 = str(jugador.id)
 
@@ -162,7 +168,7 @@ async def intercambiar(ctx, jugador: discord.Member, carta_mia: str, carta_suya:
         await ctx.send(f"❌ {jugador.display_name} no tiene la carta **{carta_suya}** para ofrecer.")
         return
 
-    # Enviar mensaje de confirmación a jugador2
+    # Solicita confirmación al segundo usuario mediante reacciones
     confirm_msg = await ctx.send(
         f"🤝 {jugador.mention}, {ctx.author.display_name} te propone intercambiar:\n"
         f"• Él da: **{carta_mia}**\n"
@@ -170,7 +176,6 @@ async def intercambiar(ctx, jugador: discord.Member, carta_mia: str, carta_suya:
         f"Reacciona ✅ para aceptar o ❌ para cancelar. (30 segundos)"
     )
 
-    # Añadir reacciones para que el jugador reaccione
     await confirm_msg.add_reaction("✅")
     await confirm_msg.add_reaction("❌")
 
@@ -188,7 +193,7 @@ async def intercambiar(ctx, jugador: discord.Member, carta_mia: str, carta_suya:
         return
 
     if str(reaction.emoji) == "✅":
-        # Confirmar que ambos aún tienen las cartas (puede que hayan cambiado)
+        # Verifica que ambos usuarios aún tengan las cartas antes de intercambiar
         if carta_mia not in colecciones.get(user1, []):
             await ctx.send(f"❌ Ya no tienes la carta **{carta_mia}** para ofrecer.")
             return
@@ -197,7 +202,7 @@ async def intercambiar(ctx, jugador: discord.Member, carta_mia: str, carta_suya:
             await ctx.send(f"❌ {jugador.display_name} ya no tiene la carta **{carta_suya}** para ofrecer.")
             return
 
-        # Realizar intercambio
+        # Realiza el intercambio de cartas
         colecciones[user1].remove(carta_mia)
         colecciones[user2].remove(carta_suya)
 
@@ -216,6 +221,7 @@ async def intercambiar(ctx, jugador: discord.Member, carta_mia: str, carta_suya:
 
 @bot.command(name="resumen")
 async def resumen(ctx):
+    # Muestra un resumen de la colección del usuario, incluyendo cantidad total y rarezas
     user_id = str(ctx.author.id)
     cartas_usuario = colecciones.get(user_id, [])
 
@@ -223,14 +229,18 @@ async def resumen(ctx):
         await ctx.send("❌ No tienes cartas en tu colección aún.")
         return
 
-    # Contar rarezas
-    rarezas = [c["rareza"] for c in cartas if c["nombre"] in cartas_usuario]
+    # Contar rarezas de las cartas que tiene el usuario
+    rarezas = []
+    for nombre_carta in cartas_usuario:
+        carta_info = next((c for c in cartas if c["nombre"] == nombre_carta), None)
+        if carta_info:
+            rarezas.append(carta_info["rareza"])
     conteo_rarezas = Counter(rarezas)
 
-    # Total cartas
+    # Total de cartas en la colección del usuario
     total = len(cartas_usuario)
 
-    # Construir texto del embed
+    # Construye la descripción del resumen
     descripcion = f"Total cartas: **{total}**\n\n"
     descripcion += "📊 Distribución por rareza:\n"
     for rareza, cantidad in conteo_rarezas.most_common():
@@ -242,7 +252,7 @@ async def resumen(ctx):
         color=discord.Color.blue()
     )
 
-    # Opcional: mostrar hasta 10 cartas en lista
+    # Muestra hasta 10 cartas únicas de la colección como ejemplo
     cartas_unicas = sorted(set(cartas_usuario))
     lista_cartas = "\n".join(cartas_unicas[:10])
     if len(cartas_unicas) > 10:
@@ -252,4 +262,5 @@ async def resumen(ctx):
 
     await ctx.send(embed=embed)
 
+# Inicia el bot con el token de Discord
 bot.run(TOKEN)
