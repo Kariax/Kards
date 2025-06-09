@@ -104,9 +104,14 @@ async def ver_carta(ctx, *, nombre: str):
         return
 
     carta = coincidencias[0]
+    # Incluye la descripción de la carta en el embed
     embed = discord.Embed(
         title=f"🃏 {carta['nombre']}",
-        description=f"🔹 Tipo: {carta['tipo']}\n⭐ Rareza: {carta['rareza']}",
+        description=(
+            f"🔹 Tipo: {carta['tipo']}\n"
+            f"⭐ Rareza: {carta['rareza']}\n"
+            f"📝 Descripción: {carta.get('descripcion', 'Sin descripción.')}"
+        ),
         color=discord.Color.purple()
     )
     if carta.get("imagen"):
