@@ -262,6 +262,9 @@ async def resumen(ctx):
 
     await ctx.send(embed=embed)
 
+# Sobrescribe el comando help por defecto antes de definir el tuyo
+bot.remove_command("help")
+
 @bot.command(name="help")
 async def help_command(ctx):
     """
