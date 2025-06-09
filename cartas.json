@@ -1,0 +1,33 @@
+[
+  {
+    "nombre": "Sir Helmar, el Tuerto",
+    "tipo": "NPC",
+    "rareza": "Rara",
+    "imagen": "https://example.com/helmar.jpg"
+  },
+  {
+    "nombre": "Espada del Ocaso",
+    "tipo": "Objeto",
+    "rareza": "Épica",
+    "imagen": "https://example.com/espada.jpg"
+  },
+  {
+    "nombre": "La Biblioteca Sumergida",
+    "tipo": "Lugar",
+    "rareza": "Poco Común",
+    "imagen": "https://example.com/biblioteca.jpg"
+  },
+  {
+    "nombre": "El Asedio de Helgran",
+    "tipo": "Evento",
+    "rareza": "Legendaria",
+    "imagen": "https://example.com/asedio.jpg"
+  },
+  {
+    "nombre": "Alrien, el Ilusionista",
+    "tipo": "Personaje",
+    "rareza": "Rara",
+    "imagen": "https://example.com/alrien.jpg"
+  }
+]
+
