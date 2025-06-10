@@ -10,6 +10,9 @@ from collections import Counter
 load_dotenv()  # Carga las variables del archivo .env
 TOKEN = os.getenv("DISCORD_TOKEN")
 
+# Reemplaza "TU_ID_AQUI" por tu ID real de usuario de Discord (por ejemplo: "189137793501364224")
+USUARIO_AUTORIZADO = "189137793501364224"
+
 # Función para leer las colecciones de cartas de los usuarios desde el archivo JSON
 def cargar_colecciones():
     try:
@@ -66,11 +69,18 @@ async def ping(ctx):
     await ctx.send("🏓 ¡Estoy vivo!")
 
 @bot.command(name="carta")
-async def carta(ctx):
-    # Da una carta aleatoria al usuario y la guarda en su colección, considerando la rareza
-    user_id = str(ctx.author.id)
+async def carta(ctx, usuario: discord.Member = None):
+    # Si no se especifica usuario, se usa el autor
+    if usuario is None:
+        usuario = ctx.author
+
+    # Solo el usuario autorizado puede usar el comando
+    if str(ctx.author.id) != USUARIO_AUTORIZADO:
+        await ctx.send("❌ Solo el usuario autorizado puede usar este comando.")
+        return
+
+    user_id = str(usuario.id)
     carta = random.choices(cartas, weights=pesos_cartas, k=1)[0]
-    # Usa un diccionario para contar cartas, no una lista
     colecciones.setdefault(user_id, {})
     colecciones[user_id][carta["nombre"]] = colecciones[user_id].get(carta["nombre"], 0) + 1
     guardar_colecciones()
@@ -90,8 +100,8 @@ async def carta(ctx):
     if carta.get("imagen"):
         embed.set_image(url=carta["imagen"])
 
-    embed.set_footer(text=f"{ctx.author.display_name}")
-    await ctx.send(embed=embed)
+    embed.set_footer(text=f"{usuario.display_name}")
+    await ctx.send(f"🎁 {usuario.mention} ha recibido una carta:", embed=embed)
 
 @bot.command(name="coleccion")
 async def coleccion(ctx):
@@ -163,9 +173,18 @@ async def ver_carta(ctx, *, nombre: str):
     await ctx.send(embed=embed)
 
 @bot.command(name="sobre")
-async def sobre(ctx):
-    # Da al usuario un "sobre" con 3 cartas aleatorias (pueden repetirse), considerando la rareza
-    user_id = str(ctx.author.id)
+async def sobre(ctx, usuario: discord.Member = None):
+    # Si no se especifica usuario, se usa el autor
+    if usuario is None:
+        usuario = ctx.author
+
+    # Solo el usuario autorizado puede usar el comando
+    if str(ctx.author.id) != USUARIO_AUTORIZADO:
+        await ctx.send("❌ Solo el usuario autorizado puede usar este comando.")
+        return
+    # Da 3 cartas aleatorias al usuario (pueden repetirse)
+
+    user_id = str(usuario.id)
     cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=3)
 
     colecciones.setdefault(user_id, {})
@@ -191,8 +210,8 @@ async def sobre(ctx):
             inline=False
         )
 
-    embed.set_footer(text=f"{ctx.author.display_name}")
-    await ctx.send(embed=embed)
+    embed.set_footer(text=f"{usuario.display_name}")
+    await ctx.send(f"🎁 {usuario.mention} ha recibido un sobre:", embed=embed)
 
 @bot.command(name="intercambiar")
 async def intercambiar(ctx, jugador: discord.Member, carta_mia: str, carta_suya: str):
