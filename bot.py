@@ -190,10 +190,10 @@ async def sobre(ctx, usuario: discord.Member = None):
     if str(ctx.author.id) != USUARIO_AUTORIZADO:
         await ctx.send("❌ Solo el usuario autorizado puede usar este comando.")
         return
-    # Da 3 cartas aleatorias al usuario (pueden repetirse)
+    # Da 5 cartas aleatorias al usuario (pueden repetirse)
 
     user_id = str(usuario.id)
-    cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=3)
+    cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=5)
 
     colecciones.setdefault(user_id, {})
     for carta in cartas_sobre:
@@ -202,7 +202,7 @@ async def sobre(ctx, usuario: discord.Member = None):
     guardar_colecciones()
 
     embed = discord.Embed(
-        title=f"🎁 ¡Has abierto un sobre con 3 cartas!",
+        title=f"🎁 ¡Has abierto un sobre con 5 cartas!",
         color=discord.Color.orange()
     )
 
