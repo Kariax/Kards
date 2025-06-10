@@ -65,6 +65,16 @@ emojis_rarezas = {
     "Legendaria": "🟡"
 }
 
+# Emojis por tipo de carta
+emojis_tipos = {
+    "Lugar": "🌍",
+    "NPC": "👤",
+    "Evento": "🎲",
+    "Bestiario": "🐾",
+    "Personaje": "🧙",
+    "Objeto": "🗝️"
+}
+
 @bot.event
 async def on_ready():
     # Mensaje en consola cuando el bot se conecta correctamente
@@ -94,12 +104,13 @@ async def carta(ctx, usuario: discord.Member = None):
 
     color = colores_rarezas.get(carta.get("rareza", ""), discord.Color.gold())
     emoji_rareza = emojis_rarezas.get(carta.get("rareza", ""), "")
+    emoji_tipo = emojis_tipos.get(carta.get("tipo", ""), "")
 
     embed = discord.Embed(
         title="🎴 ¡Has recibido una carta!",
         description=(
-            f"**{carta['nombre']}**\n"
-            f"🔹 Tipo: **{carta['tipo']}**\n"
+            f"**`{carta['nombre'].upper()}`**\n"
+            f"🔹 Tipo: **{carta['tipo']}** {emoji_tipo}\n"
             f"⭐ Rareza: {emoji_rareza} **{carta['rareza']}** {emoji_rareza}\n"
             f"📝 {carta.get('descripcion', 'Sin descripción.')}"
         ),
@@ -166,12 +177,15 @@ async def ver_carta(ctx, *, nombre: str):
     }
     color = colores_rarezas.get(carta.get("rareza", ""), discord.Color.dark_grey())
 
+    emoji_rareza = emojis_rarezas.get(carta.get("rareza", ""), "")
+    emoji_tipo = emojis_tipos.get(carta.get("tipo", ""), "")
+
     embed = discord.Embed(
-        title=f"🃏 {carta['nombre']}",
+        title=f"🃏 **`{carta['nombre'].upper()}`**",
         color=color
     )
-    embed.add_field(name="🔹 Tipo", value=f"**{carta['tipo']}**", inline=True)
-    embed.add_field(name="⭐ Rareza", value=f"**{carta['rareza']}**", inline=True)
+    embed.add_field(name="🔹 Tipo", value=f"**{carta['tipo']}** {emoji_tipo}", inline=True)
+    embed.add_field(name="⭐ Rareza", value=f"{emoji_rareza} **{carta['rareza']}** {emoji_rareza}", inline=True)
     embed.add_field(name="📝 Descripción", value=carta.get("descripcion", "Sin descripción."), inline=False)
 
     if carta.get("imagen"):
@@ -210,10 +224,11 @@ async def sobre(ctx, usuario: discord.Member = None):
     for idx, carta in enumerate(cartas_sobre, 1):
         color = colores_rarezas.get(carta.get("rareza", ""), discord.Color.gold())
         emoji_rareza = emojis_rarezas.get(carta.get("rareza", ""), "")
+        emoji_tipo = emojis_tipos.get(carta.get("tipo", ""), "")
         embed.add_field(
-            name=f"Carta {idx}: {carta['nombre']}",
+            name=f"Carta {idx}: **`{carta['nombre'].upper()}`**",
             value=(
-                f"🔹 Tipo: {carta['tipo']}\n"
+                f"🔹 Tipo: **{carta['tipo']}** {emoji_tipo}\n"
                 f"⭐ Rareza: {emoji_rareza} **{carta['rareza']}** {emoji_rareza}\n"
                 f"📝 {carta.get('descripcion', 'Sin descripción.')}"
             ),
