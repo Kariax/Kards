@@ -40,15 +40,20 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Define los pesos por rareza (ajusta los valores según lo raro que quieras cada tipo)
 pesos_rarezas = {
-    "Común": 60,
-    "Poco Común": 25,
-    "Rara": 10,
-    "Épica": 4,
-    "Legendaria": 1
+    "Común": 65,
+    "Rara": 30,
+    "Legendaria": 5
 }
 
 # Calcula los pesos para cada carta al cargar el archivo de cartas
 pesos_cartas = [pesos_rarezas.get(c["rareza"], 1) for c in cartas]
+
+# Colores por rareza para el borde del embed (ajusta si lo deseas)
+colores_rarezas = {
+    "Común": discord.Color.light_grey(),
+    "Rara": discord.Color.dark_blue(),
+    "Legendaria": discord.Color.gold()
+}
 
 @bot.event
 async def on_ready():
@@ -71,9 +76,7 @@ async def carta(ctx):
     # Colores por rareza para el borde del embed
     colores_rarezas = {
         "Común": discord.Color.light_grey(),
-        "Poco Común": discord.Color.green(),
-        "Rara": discord.Color.blue(),
-        "Épica": discord.Color.purple(),
+        "Rara": discord.Color.dark_blue(),
         "Legendaria": discord.Color.gold()
     }
     color = colores_rarezas.get(carta.get("rareza", ""), discord.Color.gold())
@@ -108,7 +111,7 @@ async def coleccion(ctx):
     embed = discord.Embed(
         title=f"📚 Colección de {ctx.author.display_name}",
         description=descripcion,
-        color=discord.Color.blue()
+        color=discord.Color.purple()
     )
     await ctx.send(embed=embed)
 
@@ -135,9 +138,7 @@ async def ver_carta(ctx, *, nombre: str):
     # Colores por rareza
     colores_rarezas = {
         "Común": discord.Color.light_grey(),
-        "Poco Común": discord.Color.green(),
         "Rara": discord.Color.blue(),
-        "Épica": discord.Color.purple(),
         "Legendaria": discord.Color.gold()
     }
     color = colores_rarezas.get(carta.get("rareza", ""), discord.Color.dark_grey())
