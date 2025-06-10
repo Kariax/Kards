@@ -70,15 +70,11 @@ async def carta(ctx):
     # Da una carta aleatoria al usuario y la guarda en su colección, considerando la rareza
     user_id = str(ctx.author.id)
     carta = random.choices(cartas, weights=pesos_cartas, k=1)[0]
-    colecciones.setdefault(user_id, []).append(carta["nombre"])
+    # Usa un diccionario para contar cartas, no una lista
+    colecciones.setdefault(user_id, {})
+    colecciones[user_id][carta["nombre"]] = colecciones[user_id].get(carta["nombre"], 0) + 1
     guardar_colecciones()
 
-    # Colores por rareza para el borde del embed
-    colores_rarezas = {
-        "Común": discord.Color.light_grey(),
-        "Rara": discord.Color.dark_blue(),
-        "Legendaria": discord.Color.gold()
-    }
     color = colores_rarezas.get(carta.get("rareza", ""), discord.Color.gold())
 
     embed = discord.Embed(
@@ -99,15 +95,19 @@ async def carta(ctx):
 
 @bot.command(name="coleccion")
 async def coleccion(ctx):
-    # Muestra todas las cartas que tiene el usuario en su colección
+    # Muestra todas las cartas que tiene el usuario en su colección, agrupando repetidas
     user_id = str(ctx.author.id)
-    cartas_usuario = colecciones.get(user_id, [])
+    cartas_usuario = colecciones.get(user_id, {})
 
-    if not cartas_usuario:
+    if not cartas_usuario or not any(cartas_usuario.values()):
         await ctx.send("📭 ¡Todavía no tienes ninguna carta!")
         return
 
-    descripcion = "\n".join(f"• {nombre}" for nombre in cartas_usuario)
+    descripcion = "\n".join(
+        f"• {nombre} x{cantidad}" if cantidad > 1 else f"• {nombre}"
+        for nombre, cantidad in cartas_usuario.items() if cantidad > 0
+    )
+
     embed = discord.Embed(
         title=f"📚 Colección de {ctx.author.display_name}",
         description=descripcion,
@@ -168,9 +168,9 @@ async def sobre(ctx):
     user_id = str(ctx.author.id)
     cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=3)
 
-    colecciones.setdefault(user_id, [])
+    colecciones.setdefault(user_id, {})
     for carta in cartas_sobre:
-        colecciones[user_id].append(carta["nombre"])
+        colecciones[user_id][carta["nombre"]] = colecciones[user_id].get(carta["nombre"], 0) + 1
 
     guardar_colecciones()
 
@@ -207,11 +207,12 @@ async def intercambiar(ctx, jugador: discord.Member, carta_mia: str, carta_suya:
     carta_mia = carta_mia.strip()
     carta_suya = carta_suya.strip()
 
-    if carta_mia not in colecciones.get(user1, []):
+    # Verifica que ambos usuarios tengan la carta y al menos 1 unidad
+    if colecciones.get(user1, {}).get(carta_mia, 0) < 1:
         await ctx.send(f"❌ No tienes la carta **{carta_mia}** para ofrecer.")
         return
 
-    if carta_suya not in colecciones.get(user2, []):
+    if colecciones.get(user2, {}).get(carta_suya, 0) < 1:
         await ctx.send(f"❌ {jugador.display_name} no tiene la carta **{carta_suya}** para ofrecer.")
         return
 
@@ -241,20 +242,24 @@ async def intercambiar(ctx, jugador: discord.Member, carta_mia: str, carta_suya:
 
     if str(reaction.emoji) == "✅":
         # Verifica que ambos usuarios aún tengan las cartas antes de intercambiar
-        if carta_mia not in colecciones.get(user1, []):
+        if colecciones.get(user1, {}).get(carta_mia, 0) < 1:
             await ctx.send(f"❌ Ya no tienes la carta **{carta_mia}** para ofrecer.")
             return
 
-        if carta_suya not in colecciones.get(user2, []):
+        if colecciones.get(user2, {}).get(carta_suya, 0) < 1:
             await ctx.send(f"❌ {jugador.display_name} ya no tiene la carta **{carta_suya}** para ofrecer.")
             return
 
         # Realiza el intercambio de cartas
-        colecciones[user1].remove(carta_mia)
-        colecciones[user2].remove(carta_suya)
+        colecciones[user1][carta_mia] -= 1
+        if colecciones[user1][carta_mia] == 0:
+            del colecciones[user1][carta_mia]
+        colecciones[user2][carta_suya] -= 1
+        if colecciones[user2][carta_suya] == 0:
+            del colecciones[user2][carta_suya]
 
-        colecciones[user1].append(carta_suya)
-        colecciones[user2].append(carta_mia)
+        colecciones[user1][carta_suya] = colecciones[user1].get(carta_suya, 0) + 1
+        colecciones[user2][carta_mia] = colecciones[user2].get(carta_mia, 0) + 1
 
         guardar_colecciones()
 
@@ -270,22 +275,22 @@ async def intercambiar(ctx, jugador: discord.Member, carta_mia: str, carta_suya:
 async def resumen(ctx):
     # Muestra un resumen de la colección del usuario, incluyendo cantidad total y rarezas
     user_id = str(ctx.author.id)
-    cartas_usuario = colecciones.get(user_id, [])
+    cartas_usuario = colecciones.get(user_id, {})
 
-    if not cartas_usuario:
+    if not cartas_usuario or not any(cartas_usuario.values()):
         await ctx.send("❌ No tienes cartas en tu colección aún.")
         return
 
     # Contar rarezas de las cartas que tiene el usuario
     rarezas = []
-    for nombre_carta in cartas_usuario:
+    for nombre_carta, cantidad in cartas_usuario.items():
         carta_info = next((c for c in cartas if c["nombre"] == nombre_carta), None)
         if carta_info:
-            rarezas.append(carta_info["rareza"])
+            rarezas.extend([carta_info["rareza"]] * cantidad)
     conteo_rarezas = Counter(rarezas)
 
     # Total de cartas en la colección del usuario
-    total = len(cartas_usuario)
+    total = sum(cartas_usuario.values())
 
     # Construye la descripción del resumen
     descripcion = f"Total cartas: **{total}**\n\n"
@@ -300,7 +305,7 @@ async def resumen(ctx):
     )
 
     # Muestra hasta 10 cartas únicas de la colección como ejemplo
-    cartas_unicas = sorted(set(cartas_usuario))
+    cartas_unicas = sorted(cartas_usuario.keys())
     lista_cartas = "\n".join(cartas_unicas[:10])
     if len(cartas_unicas) > 10:
         lista_cartas += "\n..."
