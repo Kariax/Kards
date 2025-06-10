@@ -38,6 +38,18 @@ intents.message_content = True  # Para leer el contenido de los mensajes
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# Define los pesos por rareza (ajusta los valores según lo raro que quieras cada tipo)
+pesos_rarezas = {
+    "Común": 60,
+    "Poco Común": 25,
+    "Rara": 10,
+    "Épica": 4,
+    "Legendaria": 1
+}
+
+# Calcula los pesos para cada carta al cargar el archivo de cartas
+pesos_cartas = [pesos_rarezas.get(c["rareza"], 1) for c in cartas]
+
 @bot.event
 async def on_ready():
     # Mensaje en consola cuando el bot se conecta correctamente
@@ -50,9 +62,9 @@ async def ping(ctx):
 
 @bot.command(name="carta")
 async def carta(ctx):
-    # Da una carta aleatoria al usuario y la guarda en su colección
+    # Da una carta aleatoria al usuario y la guarda en su colección, considerando la rareza
     user_id = str(ctx.author.id)
-    carta = random.choice(cartas)
+    carta = random.choices(cartas, weights=pesos_cartas, k=1)[0]
     colecciones.setdefault(user_id, []).append(carta["nombre"])
     guardar_colecciones()
 
@@ -146,9 +158,9 @@ async def ver_carta(ctx, *, nombre: str):
 
 @bot.command(name="sobre")
 async def sobre(ctx):
-    # Da al usuario un "sobre" con 3 cartas aleatorias (pueden repetirse)
+    # Da al usuario un "sobre" con 3 cartas aleatorias (pueden repetirse), considerando la rareza
     user_id = str(ctx.author.id)
-    cartas_sobre = random.choices(cartas, k=3)
+    cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=3)
 
     colecciones.setdefault(user_id, [])
     for carta in cartas_sobre:
