@@ -56,10 +56,25 @@ async def carta(ctx):
     colecciones.setdefault(user_id, []).append(carta["nombre"])
     guardar_colecciones()
 
+    # Colores por rareza para el borde del embed
+    colores_rarezas = {
+        "Común": discord.Color.light_grey(),
+        "Poco Común": discord.Color.green(),
+        "Rara": discord.Color.blue(),
+        "Épica": discord.Color.purple(),
+        "Legendaria": discord.Color.gold()
+    }
+    color = colores_rarezas.get(carta.get("rareza", ""), discord.Color.gold())
+
     embed = discord.Embed(
         title="🎴 ¡Has recibido una carta!",
-        description=f"**{carta['nombre']}**\n🔹 Tipo: {carta['tipo']}\n⭐ Rareza: {carta['rareza']}",
-        color=discord.Color.gold()
+        description=(
+            f"**{carta['nombre']}**\n"
+            f"🔹 Tipo: **{carta['tipo']}**\n"
+            f"⭐ Rareza: **{carta['rareza']}**\n"
+            f"📝 {carta.get('descripcion', 'Sin descripción.')}"
+        ),
+        color=color  # Color de borde según rareza
     )
     if carta.get("imagen"):
         embed.set_image(url=carta["imagen"])
@@ -104,16 +119,25 @@ async def ver_carta(ctx, *, nombre: str):
         return
 
     carta = coincidencias[0]
-    # Incluye la descripción de la carta en el embed
+
+    # Colores por rareza
+    colores_rarezas = {
+        "Común": discord.Color.light_grey(),
+        "Poco Común": discord.Color.green(),
+        "Rara": discord.Color.blue(),
+        "Épica": discord.Color.purple(),
+        "Legendaria": discord.Color.gold()
+    }
+    color = colores_rarezas.get(carta.get("rareza", ""), discord.Color.dark_grey())
+
     embed = discord.Embed(
         title=f"🃏 {carta['nombre']}",
-        description=(
-            f"🔹 Tipo: {carta['tipo']}\n"
-            f"⭐ Rareza: {carta['rareza']}\n"
-            f"📝 Descripción: {carta.get('descripcion', 'Sin descripción.')}"
-        ),
-        color=discord.Color.purple()
+        color=color
     )
+    embed.add_field(name="🔹 Tipo", value=f"**{carta['tipo']}**", inline=True)
+    embed.add_field(name="⭐ Rareza", value=f"**{carta['rareza']}**", inline=True)
+    embed.add_field(name="📝 Descripción", value=carta.get("descripcion", "Sin descripción."), inline=False)
+
     if carta.get("imagen"):
         embed.set_image(url=carta["imagen"])
 
@@ -137,17 +161,17 @@ async def sobre(ctx):
         color=discord.Color.orange()
     )
 
-    # Añade cada carta como campo en el embed
+    # Añade cada carta como campo en el embed, sin mostrar imágenes
     for idx, carta in enumerate(cartas_sobre, 1):
         embed.add_field(
             name=f"Carta {idx}: {carta['nombre']}",
-            value=f"🔹 Tipo: {carta['tipo']}\n⭐ Rareza: {carta['rareza']}",
+            value=(
+                f"🔹 Tipo: {carta['tipo']}\n"
+                f"⭐ Rareza: {carta['rareza']}\n"
+                f"📝 {carta.get('descripcion', 'Sin descripción.')}"
+            ),
             inline=False
         )
-
-    # Muestra la imagen de la última carta del sobre
-    if cartas_sobre[-1].get("imagen"):
-        embed.set_image(url=cartas_sobre[-1]["imagen"])
 
     embed.set_footer(text=f"{ctx.author.display_name}")
     await ctx.send(embed=embed)
