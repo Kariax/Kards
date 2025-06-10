@@ -369,10 +369,8 @@ async def help_command(ctx):
     descripcion = (
         "**Comandos disponibles:**\n\n"
         "• `!ping` — Comprueba si el bot está activo.\n"
-        "• `!carta` — Recibe una carta aleatoria y la añade a tu colección.\n"
         "• `!coleccion` — Muestra todas las cartas que tienes en tu colección.\n"
         "• `!ver <nombre>` — Muestra información detallada de una carta (puedes usar parte del nombre).\n"
-        "• `!sobre` — Abre un sobre con 3 cartas aleatorias.\n"
         "• `!intercambiar @usuario <tu_carta> <carta_suya>` — Propón un intercambio de cartas con otro usuario.\n"
         "• `!resumen` — Muestra un resumen de tu colección y la distribución de rarezas.\n"
         "• `!help` — Muestra este mensaje de ayuda.\n"
