@@ -117,9 +117,14 @@ async def coleccion(ctx):
 
 @bot.command(name="ver")
 async def ver_carta(ctx, *, nombre: str):
-    # Permite buscar y ver detalles de una carta por nombre (parcial o completo)
+    # Busca coincidencias exactas (ignorando mayúsculas/minúsculas)
     nombre = nombre.lower()
     coincidencias = [c for c in cartas if nombre in c["nombre"].lower()]
+
+    # Buscar coincidencia exacta primero
+    exacta = next((c for c in cartas if c["nombre"].lower() == nombre), None)
+    if exacta:
+        coincidencias = [exacta]
 
     if not coincidencias:
         await ctx.send(f"❌ No se encontró ninguna carta que coincida con **{nombre}**.")
