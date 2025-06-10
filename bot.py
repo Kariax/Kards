@@ -58,6 +58,13 @@ colores_rarezas = {
     "Legendaria": discord.Color.gold()
 }
 
+# Emojis por rareza para mostrar junto al texto de rareza
+emojis_rarezas = {
+    "Común": "⚪",
+    "Rara": "🔵",
+    "Legendaria": "🟡"
+}
+
 @bot.event
 async def on_ready():
     # Mensaje en consola cuando el bot se conecta correctamente
@@ -86,13 +93,14 @@ async def carta(ctx, usuario: discord.Member = None):
     guardar_colecciones()
 
     color = colores_rarezas.get(carta.get("rareza", ""), discord.Color.gold())
+    emoji_rareza = emojis_rarezas.get(carta.get("rareza", ""), "")
 
     embed = discord.Embed(
         title="🎴 ¡Has recibido una carta!",
         description=(
             f"**{carta['nombre']}**\n"
             f"🔹 Tipo: **{carta['tipo']}**\n"
-            f"⭐ Rareza: **{carta['rareza']}**\n"
+            f"⭐ Rareza: {emoji_rareza} **{carta['rareza']}** {emoji_rareza}\n"
             f"📝 {carta.get('descripcion', 'Sin descripción.')}"
         ),
         color=color  # Color de borde según rareza
@@ -200,11 +208,13 @@ async def sobre(ctx, usuario: discord.Member = None):
 
     # Añade cada carta como campo en el embed, sin mostrar imágenes
     for idx, carta in enumerate(cartas_sobre, 1):
+        color = colores_rarezas.get(carta.get("rareza", ""), discord.Color.gold())
+        emoji_rareza = emojis_rarezas.get(carta.get("rareza", ""), "")
         embed.add_field(
             name=f"Carta {idx}: {carta['nombre']}",
             value=(
                 f"🔹 Tipo: {carta['tipo']}\n"
-                f"⭐ Rareza: {carta['rareza']}\n"
+                f"⭐ Rareza: {emoji_rareza} **{carta['rareza']}** {emoji_rareza}\n"
                 f"📝 {carta.get('descripcion', 'Sin descripción.')}"
             ),
             inline=False
