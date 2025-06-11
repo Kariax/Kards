@@ -43,9 +43,9 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Define los pesos por rareza (ajusta los valores según lo raro que quieras cada tipo)
 pesos_rarezas = {
-    "Común": 65,
+    "Común": 60,
     "Rara": 30,
-    "Legendaria": 5
+    "Legendaria": 10
 }
 
 # Calcula los pesos para cada carta al cargar el archivo de cartas
