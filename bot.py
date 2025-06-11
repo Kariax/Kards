@@ -207,7 +207,7 @@ async def sobre(ctx, usuario: discord.Member = None):
     # Da 5 cartas aleatorias al usuario (pueden repetirse)
 
     user_id = str(usuario.id)
-    cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=5)
+    cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=10)
 
     colecciones.setdefault(user_id, {})
     for carta in cartas_sobre:
