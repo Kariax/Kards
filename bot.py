@@ -204,7 +204,7 @@ async def sobre(ctx, usuario: discord.Member = None):
     if str(ctx.author.id) != USUARIO_AUTORIZADO:
         await ctx.send("❌ Solo el usuario autorizado puede usar este comando.")
         return
-    # Da 5 cartas aleatorias al usuario (pueden repetirse)
+    # Da 10 cartas aleatorias al usuario (pueden repetirse)
 
     user_id = str(usuario.id)
     cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=10)
