@@ -124,6 +124,8 @@ async def carta(ctx, usuario: discord.Member = None):
 
 @bot.command(name="coleccion")
 async def coleccion(ctx):
+    global cartas
+
     # Muestra todas las cartas que tiene el usuario en su colección, agrupando repetidas
     user_id = str(ctx.author.id)
     cartas_usuario = colecciones.get(user_id, {})
@@ -132,10 +134,32 @@ async def coleccion(ctx):
         await ctx.send("📭 ¡Todavía no tienes ninguna carta!")
         return
 
-    descripcion = "\n".join(
-        f"• {nombre} x{cantidad}" if cantidad > 1 else f"• {nombre}"
-        for nombre, cantidad in cartas_usuario.items() if cantidad > 0
-    )
+    # Orden de rarezas y sus emojis
+    orden_rareza = ["Común", "Rara", "Legendaria"]
+    emojis_rareza = {
+        "Común": "⚪",
+        "Rara": "🔵",
+        "Legendaria": "🟡"
+    }
+
+    # Agrupa cartas por rareza
+    cartas_por_rareza = {rareza: [] for rareza in orden_rareza}
+    for nombre, cantidad in cartas_usuario.items():
+        carta_info = next((c for c in cartas if c["nombre"] == nombre), None)
+        if carta_info:
+            rareza = carta_info.get("rareza", "Común")
+            if rareza in cartas_por_rareza:
+                cartas_por_rareza[rareza].append((nombre, cantidad, emojis_rareza.get(rareza, "")))
+
+    # Construye la descripción solo con cartas y emoji de rareza, sin titular de rareza
+    descripcion = ""
+    for rareza in orden_rareza:
+        cartas_r = cartas_por_rareza[rareza]
+        for nombre, cantidad, emoji in cartas_r:
+            if cantidad > 1:
+                descripcion += f"{emoji} {nombre} x{cantidad}\n"
+            else:
+                descripcion += f"{emoji} {nombre}\n"
 
     embed = discord.Embed(
         title=f"📚 Colección de {ctx.author.display_name}",
@@ -216,7 +240,7 @@ async def sobre(ctx, usuario: discord.Member = None):
     guardar_colecciones()
 
     embed = discord.Embed(
-        title=f"🎁 ¡Has abierto un sobre con 5 cartas!",
+        title=f"🎁 ¡Has abierto un sobre con 10 cartas!",
         color=discord.Color.orange()
     )
 
@@ -317,7 +341,6 @@ async def intercambiar(ctx, jugador: discord.Member, carta_mia: str, carta_suya:
 
 @bot.command(name="resumen")
 async def resumen(ctx):
-    # Muestra un resumen de la colección del usuario, incluyendo cantidad total y rarezas
     user_id = str(ctx.author.id)
     cartas_usuario = colecciones.get(user_id, {})
 
@@ -325,36 +348,42 @@ async def resumen(ctx):
         await ctx.send("❌ No tienes cartas en tu colección aún.")
         return
 
-    # Contar rarezas de las cartas que tiene el usuario
-    rarezas = []
-    for nombre_carta, cantidad in cartas_usuario.items():
+    # Calcula el total de cartas únicas por rareza en la colección del usuario
+    rarezas_usuario = {}
+    for nombre_carta in cartas_usuario.keys():
         carta_info = next((c for c in cartas if c["nombre"] == nombre_carta), None)
         if carta_info:
-            rarezas.extend([carta_info["rareza"]] * cantidad)
-    conteo_rarezas = Counter(rarezas)
+            rareza = carta_info["rareza"]
+            rarezas_usuario.setdefault(rareza, set()).add(nombre_carta)
 
-    # Total de cartas en la colección del usuario
-    total = sum(cartas_usuario.values())
+    # Calcula el total de cartas únicas por rareza existentes en el juego
+    rarezas_totales = {}
+    for carta in cartas:
+        rareza = carta["rareza"]
+        rarezas_totales.setdefault(rareza, set()).add(carta["nombre"])
 
-    # Construye la descripción del resumen
-    descripcion = f"Total cartas: **{total}**\n\n"
-    descripcion += "📊 Distribución por rareza:\n"
-    for rareza, cantidad in conteo_rarezas.most_common():
-        descripcion += f"• {rareza}: {cantidad}\n"
+    # Orden y emojis de rareza
+    orden_rareza = ["Común", "Rara", "Legendaria"]
+    emojis_rareza = {
+        "Común": "⚪",
+        "Rara": "🔵",
+        "Legendaria": "🟡"
+    }
+
+    descripcion = "📊 **Progreso de colección por rareza:**\n"
+    for rareza in orden_rareza:
+        cartas_set = rarezas_totales.get(rareza, set())
+        obtenidas = len(rarezas_usuario.get(rareza, set()))
+        total = len(cartas_set)
+        porcentaje = (obtenidas / total * 100) if total > 0 else 0
+        emoji = emojis_rareza.get(rareza, "")
+        descripcion += f"{emoji} {rareza}: {obtenidas}/{total} ({porcentaje:.1f}%)\n"
 
     embed = discord.Embed(
-        title=f"📚 Resumen de la colección de {ctx.author.display_name}",
+        title=f"📚 Estado de la colección de {ctx.author.display_name}",
         description=descripcion,
         color=discord.Color.blue()
     )
-
-    # Muestra hasta 10 cartas únicas de la colección como ejemplo
-    cartas_unicas = sorted(cartas_usuario.keys())
-    lista_cartas = "\n".join(cartas_unicas[:10])
-    if len(cartas_unicas) > 10:
-        lista_cartas += "\n..."
-
-    embed.add_field(name="Algunas cartas:", value=lista_cartas, inline=False)
 
     await ctx.send(embed=embed)
 
@@ -371,7 +400,7 @@ async def help_command(ctx):
         "• `!ping` — Comprueba si el bot está activo.\n"
         "• `!coleccion` — Muestra todas las cartas que tienes en tu colección.\n"
         "• `!ver <nombre>` — Muestra información detallada de una carta (puedes usar parte del nombre).\n"
-        "• `!intercambiar @usuario <tu_carta> <carta_suya>` — Propón un intercambio de cartas con otro usuario.\n"
+        "• `!intercambiar @usuario \"nombre_mi_carta\" \"nombre_su_carta\"` — Propón un intercambio de cartas (nombre exacto) con otro usuario.\n"
         "• `!resumen` — Muestra un resumen de tu colección y la distribución de rarezas.\n"
         "• `!help` — Muestra este mensaje de ayuda.\n"
     )
