@@ -170,6 +170,9 @@ async def coleccion(ctx):
 
 @bot.command(name="ver")
 async def ver_carta(ctx, *, nombre: str):
+    user_id = str(ctx.author.id)
+    cartas_usuario = colecciones.get(user_id, {})
+
     # Busca coincidencias exactas (ignorando mayúsculas/minúsculas)
     nombre = nombre.lower()
     coincidencias = [c for c in cartas if nombre in c["nombre"].lower()]
@@ -179,14 +182,17 @@ async def ver_carta(ctx, *, nombre: str):
     if exacta:
         coincidencias = [exacta]
 
+    # Filtra solo cartas que el usuario posee
+    coincidencias = [c for c in coincidencias if c["nombre"] in cartas_usuario and cartas_usuario[c["nombre"]] > 0]
+
     if not coincidencias:
-        await ctx.send(f"❌ No se encontró ninguna carta que coincida con **{nombre}**.")
+        await ctx.send("❌ Solo puedes ver cartas que posees en tu colección.")
         return
 
     if len(coincidencias) > 1:
         lista = "\n".join(f"• {c['nombre']}" for c in coincidencias)
         await ctx.send(
-            f"🔍 Se encontraron varias cartas que coinciden con **{nombre}**:\n{lista}\n\n"
+            f"🔍 Se encontraron varias cartas que coinciden con ese nombre en tu colección:\n{lista}\n\n"
             f"🔁 Por favor, especifica mejor el nombre."
         )
         return
