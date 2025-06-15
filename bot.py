@@ -194,22 +194,62 @@ async def coleccion(ctx, usuario: discord.Member = None):
         await enviar_error(ctx, f"¡{usuario.display_name} todavía no tiene ninguna carta!")
         return
 
+    # Cambia el orden de rarezas: Legendaria, Rara, Común
+    ORDEN_RAREZA_INVERSO = ["Legendaria", "Rara", "Común"]
     cartas_por_rareza = agrupar_cartas_por_rareza(cartas_usuario)
-    descripcion = ""
-    for rareza in ORDEN_RAREZA:
+    cartas_lista = []
+    for rareza in ORDEN_RAREZA_INVERSO:
         cartas_r = cartas_por_rareza[rareza]
         for nombre, cantidad, emoji in cartas_r:
             if cantidad > 1:
-                descripcion += f"{emoji} {nombre} x{cantidad}\n"
+                cartas_lista.append(f"{emoji} {nombre} x{cantidad}")
             else:
-                descripcion += f"{emoji} {nombre}\n"
+                cartas_lista.append(f"{emoji} {nombre}")
 
-    embed = discord.Embed(
-        title=f"📚 Colección de {usuario.display_name}",
-        description=descripcion,
-        color=discord.Color.purple()
-    )
-    await ctx.send(embed=embed)
+    cartas_por_pagina = 15
+    paginas = [cartas_lista[i:i+cartas_por_pagina] for i in range(0, len(cartas_lista), cartas_por_pagina)]
+    total_paginas = len(paginas)
+    if total_paginas == 0:
+        paginas = [["(Vacío)"]]
+        total_paginas = 1
+
+    def crear_embed_pagina(pagina_idx):
+        descripcion = "\n".join(paginas[pagina_idx])
+        embed = discord.Embed(
+            title=f"📚 Colección de {usuario.display_name} (Página {pagina_idx+1}/{total_paginas})",
+            description=descripcion,
+            color=discord.Color.purple()
+        )
+        return embed
+
+    pagina_actual = 0
+    mensaje = await ctx.send(embed=crear_embed_pagina(pagina_actual))
+
+    if total_paginas > 1:
+        await mensaje.add_reaction("⬅️")
+        await mensaje.add_reaction("➡️")
+
+        def check(reaction, user):
+            return (
+                user == ctx.author and str(reaction.emoji) in ["⬅️", "➡️"] and reaction.message.id == mensaje.id
+            )
+
+        while True:
+            try:
+                reaction, user = await bot.wait_for("reaction_add", timeout=60.0, check=check)
+            except asyncio.TimeoutError:
+                break
+
+            if str(reaction.emoji) == "➡️" and pagina_actual < total_paginas - 1:
+                pagina_actual += 1
+                await mensaje.edit(embed=crear_embed_pagina(pagina_actual))
+                await mensaje.remove_reaction(reaction, user)
+            elif str(reaction.emoji) == "⬅️" and pagina_actual > 0:
+                pagina_actual -= 1
+                await mensaje.edit(embed=crear_embed_pagina(pagina_actual))
+                await mensaje.remove_reaction(reaction, user)
+            else:
+                await mensaje.remove_reaction(reaction, user)
 
 @bot.command(name="ver")
 async def ver_carta(ctx, *, nombre: str):
