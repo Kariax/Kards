@@ -478,16 +478,14 @@ bot.remove_command("help")
 
 @bot.command(name="help")
 async def help_command(ctx):
-    """
-    Muestra una ayuda con la explicación de todos los comandos disponibles.
-    """
     descripcion = (
         "**Comandos disponibles:**\n\n"
         "• `!ping` — Comprueba si el bot está activo.\n"
-        "• `!coleccion` — Muestra todas las cartas que tienes en tu colección.\n"
-        "• `!ver <nombre>` — Muestra información detallada de una carta (puedes usar parte del nombre).\n"
-        "• `!intercambiar @usuario \"nombre_mi_carta\" \"nombre_su_carta\"` — Propón un intercambio de cartas (nombre exacto) con otro usuario.\n"
+        "• `!coleccion [@usuario]` — Muestra la colección de cartas de un usuario (o la tuya si no mencionas a nadie), con paginación.\n"
+        "• `!ver <nombre>` — Muestra información detallada de una carta que posees. Ejemplo: `!ver goblin`\n"
+        "• `!intercambiar @usuario \"mi_carta\" \"su_carta\"` — Propón un intercambio de cartas con otro usuario. Ejemplo: `!intercambiar @Kariax \"Goblin\" \"Lobo\"`\n"
         "• `!resumen` — Muestra un resumen de tu colección y la distribución de rarezas.\n"
+        "• `!falta [@usuario]` — Muestra las cartas que te faltan para completar la colección (o las de otro usuario), con paginación.\n"
         "• `!help` — Muestra este mensaje de ayuda.\n"
     )
     embed = discord.Embed(
