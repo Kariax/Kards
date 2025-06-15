@@ -399,6 +399,80 @@ async def resumen(ctx):
 
     await ctx.send(embed=embed)
 
+@bot.command(name="falta")
+async def faltantes(ctx, usuario: discord.Member = None):
+    # Si no se especifica usuario, se usa el autor
+    if usuario is None:
+        usuario = ctx.author
+
+    user_id = str(usuario.id)
+    cartas_usuario = colecciones.get(user_id, {})
+
+    # Obtén los nombres de todas las cartas y las que tiene el usuario
+    todas_las_cartas = set(c["nombre"] for c in cartas)
+    cartas_tenidas = set(nombre for nombre, cantidad in cartas_usuario.items() if cantidad > 0)
+    cartas_faltantes = todas_las_cartas - cartas_tenidas
+
+    if not cartas_faltantes:
+        await ctx.send(f"🎉 ¡{usuario.display_name} tiene la colección completa!")
+        return
+
+    # Ordena por rareza (Legendaria, Rara, Común) y luego alfabéticamente
+    faltantes_ordenados = []
+    orden_rareza = ["Común", "Rara", "Legendaria"]
+    for rareza in orden_rareza:
+        nombres = sorted(
+            [c["nombre"] for c in cartas if c["nombre"] in cartas_faltantes and c["rareza"] == rareza]
+        )
+        for nombre in nombres:
+            emoji = EMOJIS_RAREZA.get(rareza, "")
+            faltantes_ordenados.append(f"{emoji} {nombre}")
+
+    cartas_por_pagina = 15
+    paginas = [faltantes_ordenados[i:i+cartas_por_pagina] for i in range(0, len(faltantes_ordenados), cartas_por_pagina)]
+    total_paginas = len(paginas)
+    if total_paginas == 0:
+        paginas = [["(Vacío)"]]
+        total_paginas = 1
+
+    def crear_embed_pagina(pagina_idx):
+        descripcion = "\n".join(paginas[pagina_idx])
+        embed = discord.Embed(
+            title=f"🗂️ Cartas que le faltan a {usuario.display_name} (Página {pagina_idx+1}/{total_paginas})",
+            description=descripcion,
+            color=discord.Color.orange()
+        )
+        return embed
+
+    pagina_actual = 0
+    mensaje = await ctx.send(embed=crear_embed_pagina(pagina_actual))
+
+    if total_paginas > 1:
+        await mensaje.add_reaction("⬅️")
+        await mensaje.add_reaction("➡️")
+
+        def check(reaction, user):
+            return (
+                user == ctx.author and str(reaction.emoji) in ["⬅️", "➡️"] and reaction.message.id == mensaje.id
+            )
+
+        while True:
+            try:
+                reaction, user = await bot.wait_for("reaction_add", timeout=60.0, check=check)
+            except asyncio.TimeoutError:
+                break
+
+            if str(reaction.emoji) == "➡️" and pagina_actual < total_paginas - 1:
+                pagina_actual += 1
+                await mensaje.edit(embed=crear_embed_pagina(pagina_actual))
+                await mensaje.remove_reaction(reaction, user)
+            elif str(reaction.emoji) == "⬅️" and pagina_actual > 0:
+                pagina_actual -= 1
+                await mensaje.edit(embed=crear_embed_pagina(pagina_actual))
+                await mensaje.remove_reaction(reaction, user)
+            else:
+                await mensaje.remove_reaction(reaction, user)
+
 # Sobrescribe el comando help por defecto antes de definir el tuyo
 bot.remove_command("help")
 
