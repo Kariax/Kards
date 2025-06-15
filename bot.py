@@ -111,16 +111,17 @@ async def on_ready():
 async def ping(ctx):
     await ctx.send("🏓 ¡Estoy vivo!")
 
+def solo_autorizado():
+    def predicate(ctx):
+        return str(ctx.author.id) == USUARIO_AUTORIZADO
+    return commands.check(predicate)
+
 @bot.command(name="carta")
+@solo_autorizado()
 async def carta(ctx, usuario: discord.Member = None):
     # Si no se especifica usuario, se usa el autor
     if usuario is None:
         usuario = ctx.author
-
-    # Solo el usuario autorizado puede usar el comando
-    if str(ctx.author.id) != USUARIO_AUTORIZADO:
-        await ctx.send("❌ Solo el usuario autorizado puede usar este comando.")
-        return
 
     user_id = str(usuario.id)
     carta = random.choices(cartas, weights=pesos_cartas, k=1)[0]
@@ -132,15 +133,11 @@ async def carta(ctx, usuario: discord.Member = None):
     await ctx.send(f"🎁 {usuario.mention} ha recibido una carta:", embed=embed)
 
 @bot.command(name="sobre")
+@solo_autorizado()
 async def sobre(ctx, usuario: discord.Member = None):
     # Si no se especifica usuario, se usa el autor
     if usuario is None:
         usuario = ctx.author
-
-    # Solo el usuario autorizado puede usar el comando
-    if str(ctx.author.id) != USUARIO_AUTORIZADO:
-        await ctx.send("❌ Solo el usuario autorizado puede usar este comando.")
-        return
 
     user_id = str(usuario.id)
     cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=10)
