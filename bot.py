@@ -116,6 +116,15 @@ def solo_autorizado():
         return str(ctx.author.id) == USUARIO_AUTORIZADO
     return commands.check(predicate)
 
+# Función utilitaria para enviar errores como embed
+async def enviar_error(ctx, mensaje):
+    embed = discord.Embed(
+        title="❌ Error",
+        description=mensaje,
+        color=discord.Color.red()
+    )
+    await ctx.send(embed=embed)
+
 @bot.command(name="carta")
 @solo_autorizado()
 async def carta(ctx, usuario: discord.Member = None):
@@ -124,7 +133,11 @@ async def carta(ctx, usuario: discord.Member = None):
         usuario = ctx.author
 
     user_id = str(usuario.id)
-    carta = random.choices(cartas, weights=pesos_cartas, k=1)[0]
+    try:
+        carta = random.choices(cartas, weights=pesos_cartas, k=1)[0]
+    except Exception:
+        await enviar_error(ctx, "No se pudo seleccionar una carta.")
+        return
     colecciones.setdefault(user_id, {})
     colecciones[user_id][carta["nombre"]] = colecciones[user_id].get(carta["nombre"], 0) + 1
     guardar_colecciones()
@@ -140,14 +153,18 @@ async def sobre(ctx, usuario: discord.Member = None):
         usuario = ctx.author
 
     user_id = str(usuario.id)
-    cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=10)
+    try:
+        cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=5)
+    except Exception:
+        await enviar_error(ctx, "No se pudo generar el sobre.")
+        return
     colecciones.setdefault(user_id, {})
     for carta in cartas_sobre:
         colecciones[user_id][carta["nombre"]] = colecciones[user_id].get(carta["nombre"], 0) + 1
     guardar_colecciones()
 
     embed = discord.Embed(
-        title=f"🎁 ¡Has abierto un sobre con 10 cartas!",
+        title=f"🎁 ¡Has abierto un sobre con 5 cartas!",
         color=discord.Color.orange()
     )
     for idx, carta in enumerate(cartas_sobre, 1):
@@ -171,7 +188,7 @@ async def coleccion(ctx):
     cartas_usuario = colecciones.get(user_id, {})
 
     if not cartas_usuario or not any(cartas_usuario.values()):
-        await ctx.send("📭 ¡Todavía no tienes ninguna carta!")
+        await enviar_error(ctx, "¡Todavía no tienes ninguna carta!")
         return
 
     cartas_por_rareza = agrupar_cartas_por_rareza(cartas_usuario)
@@ -199,13 +216,13 @@ async def ver_carta(ctx, *, nombre: str):
     coincidencias = buscar_cartas_usuario(nombre, cartas, cartas_usuario)
 
     if not coincidencias:
-        await ctx.send("❌ Solo puedes ver cartas que posees en tu colección.")
+        await enviar_error(ctx, "Solo puedes ver cartas que posees en tu colección.")
         return
 
     if len(coincidencias) > 1:
         lista = "\n".join(f"• {c['nombre']}" for c in coincidencias)
-        await ctx.send(
-            f"🔍 Se encontraron varias cartas que coinciden con ese nombre en tu colección:\n{lista}\n\n"
+        await enviar_error(
+            f"Se encontraron varias cartas que coinciden con ese nombre en tu colección:\n{lista}\n\n"
             f"🔁 Por favor, especifica mejor el nombre."
         )
         return
@@ -297,7 +314,7 @@ async def resumen(ctx):
     cartas_usuario = colecciones.get(user_id, {})
 
     if not cartas_usuario or not any(cartas_usuario.values()):
-        await ctx.send("❌ No tienes cartas en tu colección aún.")
+        await enviar_error(ctx, "No tienes cartas en tu colección aún.")
         return
 
     # Calcula el total de cartas únicas por rareza en la colección del usuario
