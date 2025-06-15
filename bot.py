@@ -154,7 +154,7 @@ async def sobre(ctx, usuario: discord.Member = None):
 
     user_id = str(usuario.id)
     try:
-        cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=5)
+        cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=10)
     except Exception:
         await enviar_error(ctx, "No se pudo generar el sobre.")
         return
@@ -164,7 +164,7 @@ async def sobre(ctx, usuario: discord.Member = None):
     guardar_colecciones()
 
     embed = discord.Embed(
-        title=f"🎁 ¡Has abierto un sobre con 5 cartas!",
+        title=f"🎁 ¡Has abierto un sobre con 10 cartas!",
         color=discord.Color.orange()
     )
     for idx, carta in enumerate(cartas_sobre, 1):
@@ -183,12 +183,15 @@ async def sobre(ctx, usuario: discord.Member = None):
     await ctx.send(f"🎁 {usuario.mention} ha recibido un sobre:", embed=embed)
 
 @bot.command(name="coleccion")
-async def coleccion(ctx):
-    user_id = str(ctx.author.id)
-    cartas_usuario = colecciones.get(user_id, {})
+async def coleccion(ctx, usuario: discord.Member = None):
+    # Si no se especifica usuario, se usa el autor
+    if usuario is None:
+        usuario = ctx.author
 
+    user_id = str(usuario.id)
+    cartas_usuario = colecciones.get(user_id, {})
     if not cartas_usuario or not any(cartas_usuario.values()):
-        await enviar_error(ctx, "¡Todavía no tienes ninguna carta!")
+        await enviar_error(ctx, f"¡{usuario.display_name} todavía no tiene ninguna carta!")
         return
 
     cartas_por_rareza = agrupar_cartas_por_rareza(cartas_usuario)
@@ -202,7 +205,7 @@ async def coleccion(ctx):
                 descripcion += f"{emoji} {nombre}\n"
 
     embed = discord.Embed(
-        title=f"📚 Colección de {ctx.author.display_name}",
+        title=f"📚 Colección de {usuario.display_name}",
         description=descripcion,
         color=discord.Color.purple()
     )
