@@ -382,7 +382,9 @@ async def resumen(ctx):
         "Legendaria": "🟡"
     }
 
-    descripcion = "📊 **Progreso de colección por rareza:**\n"
+    descripcion = "📊 **Progreso de colección por rareza:**\n\n"
+    total_obtenidas = 0
+    total_cartas = 0
     for rareza in orden_rareza:
         cartas_set = rarezas_totales.get(rareza, set())
         obtenidas = len(rarezas_usuario.get(rareza, set()))
@@ -390,6 +392,12 @@ async def resumen(ctx):
         porcentaje = (obtenidas / total * 100) if total > 0 else 0
         emoji = emojis_rareza.get(rareza, "")
         descripcion += f"{emoji} {rareza}: {obtenidas}/{total} ({porcentaje:.1f}%)\n"
+        total_obtenidas += obtenidas
+        total_cartas += total
+
+    # Porcentaje total
+    porcentaje_total = (total_obtenidas / total_cartas * 100) if total_cartas > 0 else 0
+    descripcion += f"\n📈 **Total colección:** `{total_obtenidas}/{total_cartas} ({porcentaje_total:.1f}%)`"
 
     embed = discord.Embed(
         title=f"📚 Estado de la colección de {ctx.author.display_name}",
