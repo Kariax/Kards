@@ -6,6 +6,7 @@ import os
 from dotenv import load_dotenv
 import asyncio
 from collections import Counter
+import unicodedata
 
 load_dotenv()  # Carga las variables del archivo .env
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -74,6 +75,12 @@ emojis_tipos = {
     "Personaje": "🧙",
     "Objeto": "🗝️"
 }
+
+def quitar_tildes(texto):
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', texto)
+        if unicodedata.category(c) != 'Mn'
+    )
 
 @bot.event
 async def on_ready():
@@ -173,17 +180,28 @@ async def ver_carta(ctx, *, nombre: str):
     user_id = str(ctx.author.id)
     cartas_usuario = colecciones.get(user_id, {})
 
-    # Busca coincidencias exactas (ignorando mayúsculas/minúsculas)
-    nombre = nombre.lower()
-    coincidencias = [c for c in cartas if nombre in c["nombre"].lower()]
+    # Normaliza el nombre buscado (sin tildes y minúsculas)
+    nombre_normalizado = quitar_tildes(nombre.lower())
+
+    # Busca coincidencias ignorando tildes y mayúsculas/minúsculas
+    coincidencias = [
+        c for c in cartas
+        if quitar_tildes(c["nombre"].lower()).find(nombre_normalizado) != -1
+    ]
 
     # Buscar coincidencia exacta primero
-    exacta = next((c for c in cartas if c["nombre"].lower() == nombre), None)
+    exacta = next(
+        (c for c in cartas if quitar_tildes(c["nombre"].lower()) == nombre_normalizado),
+        None
+    )
     if exacta:
         coincidencias = [exacta]
 
     # Filtra solo cartas que el usuario posee
-    coincidencias = [c for c in coincidencias if c["nombre"] in cartas_usuario and cartas_usuario[c["nombre"]] > 0]
+    coincidencias = [
+        c for c in coincidencias
+        if c["nombre"] in cartas_usuario and cartas_usuario[c["nombre"]] > 0
+    ]
 
     if not coincidencias:
         await ctx.send("❌ Solo puedes ver cartas que posees en tu colección.")
