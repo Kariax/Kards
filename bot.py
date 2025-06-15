@@ -8,73 +8,24 @@ import asyncio
 from collections import Counter
 import unicodedata
 
-load_dotenv()  # Carga las variables del archivo .env
-TOKEN = os.getenv("DISCORD_TOKEN")
+# --- Configuración y utilidades globales ---
 
-# Reemplaza "TU_ID_AQUI" por tu ID real de usuario de Discord (por ejemplo: "189137793501364224")
+load_dotenv()
+TOKEN = os.getenv("DISCORD_TOKEN")
 USUARIO_AUTORIZADO = "189137793501364224"
 
-# Función para leer las colecciones de cartas de los usuarios desde el archivo JSON
-def cargar_colecciones():
-    try:
-        with open("colecciones.json", "r", encoding="utf-8") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        # Si el archivo no existe, retorna un diccionario vacío
-        return {}
-
-# Función para guardar las colecciones de cartas de los usuarios en el archivo JSON
-def guardar_colecciones():
-    with open("colecciones.json", "w", encoding="utf-8") as f:
-        json.dump(colecciones, f, ensure_ascii=False, indent=2)
-
-# Carga las cartas disponibles desde el archivo JSON
-with open("cartas.json", "r", encoding="utf-8") as file:
-    cartas = json.load(file)
-
-# Carga las colecciones de los usuarios
-colecciones = cargar_colecciones()
-
-# Configuración de los intents para el bot de Discord (solo los necesarios)
-intents = discord.Intents.default()
-intents.members = True  # Para comandos que usan miembros (como intercambiar)
-intents.message_content = True  # Para leer el contenido de los mensajes
-
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-# Define los pesos por rareza (ajusta los valores según lo raro que quieras cada tipo)
-pesos_rarezas = {
-    "Común": 60,
-    "Rara": 30,
-    "Legendaria": 10
+# Emojis y colores por rareza y tipo
+EMOJIS_RAREZA = {"Común": "⚪", "Rara": "🔵", "Legendaria": "🟡"}
+EMOJIS_TIPOS = {
+    "Lugar": "🌍", "NPC": "👤", "Evento": "🎲",
+    "Bestiario": "🐾", "Personaje": "🧙", "Objeto": "🗝️"
 }
-
-# Calcula los pesos para cada carta al cargar el archivo de cartas
-pesos_cartas = [pesos_rarezas.get(c["rareza"], 1) for c in cartas]
-
-# Colores por rareza para el borde del embed (ajusta si lo deseas)
-colores_rarezas = {
+COLORES_RAREZA = {
     "Común": discord.Color.light_grey(),
     "Rara": discord.Color.dark_blue(),
     "Legendaria": discord.Color.gold()
 }
-
-# Emojis por rareza para mostrar junto al texto de rareza
-emojis_rarezas = {
-    "Común": "⚪",
-    "Rara": "🔵",
-    "Legendaria": "🟡"
-}
-
-# Emojis por tipo de carta
-emojis_tipos = {
-    "Lugar": "🌍",
-    "NPC": "👤",
-    "Evento": "🎲",
-    "Bestiario": "🐾",
-    "Personaje": "🧙",
-    "Objeto": "🗝️"
-}
+ORDEN_RAREZA = ["Común", "Rara", "Legendaria"]
 
 def quitar_tildes(texto):
     return ''.join(
@@ -82,14 +33,82 @@ def quitar_tildes(texto):
         if unicodedata.category(c) != 'Mn'
     )
 
+def cargar_colecciones():
+    try:
+        with open("colecciones.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+def guardar_colecciones():
+    with open("colecciones.json", "w", encoding="utf-8") as f:
+        json.dump(colecciones, f, ensure_ascii=False, indent=2)
+
+with open("cartas.json", "r", encoding="utf-8") as file:
+    cartas = json.load(file)
+
+colecciones = cargar_colecciones()
+
+# Pesos de cartas por rareza
+pesos_rarezas = {"Común": 60, "Rara": 30, "Legendaria": 10}
+pesos_cartas = [pesos_rarezas.get(c["rareza"], 1) for c in cartas]
+
+# --- Funciones utilitarias ---
+
+def buscar_cartas_usuario(nombre, cartas, cartas_usuario):
+    nombre_normalizado = quitar_tildes(nombre.lower())
+    coincidencias = [
+        c for c in cartas
+        if quitar_tildes(c["nombre"].lower()).find(nombre_normalizado) != -1
+        and cartas_usuario.get(c["nombre"], 0) > 0
+    ]
+    exacta = next(
+        (c for c in cartas if quitar_tildes(c["nombre"].lower()) == nombre_normalizado and cartas_usuario.get(c["nombre"], 0) > 0),
+        None
+    )
+    if exacta:
+        return [exacta]
+    return coincidencias
+
+def crear_embed_carta(carta, usuario):
+    color = COLORES_RAREZA.get(carta.get("rareza", ""), discord.Color.dark_grey())
+    emoji_rareza = EMOJIS_RAREZA.get(carta.get("rareza", ""), "")
+    emoji_tipo = EMOJIS_TIPOS.get(carta.get("tipo", ""), "")
+    embed = discord.Embed(
+        title=f"🃏 **`{carta['nombre'].upper()}`**",
+        color=color
+    )
+    embed.add_field(name="🔹 Tipo", value=f"**{carta['tipo']}** {emoji_tipo}", inline=True)
+    embed.add_field(name="⭐ Rareza", value=f"{emoji_rareza} **{carta['rareza']}** {emoji_rareza}", inline=True)
+    embed.add_field(name="📝 Descripción", value=carta.get("descripcion", "Sin descripción."), inline=False)
+    if carta.get("imagen"):
+        embed.set_image(url=carta["imagen"])
+    embed.set_footer(text=f"{usuario.display_name}")
+    return embed
+
+def agrupar_cartas_por_rareza(cartas_usuario):
+    cartas_por_rareza = {rareza: [] for rareza in ORDEN_RAREZA}
+    for nombre, cantidad in cartas_usuario.items():
+        carta_info = next((c for c in cartas if c["nombre"] == nombre), None)
+        if carta_info:
+            rareza = carta_info.get("rareza", "Común")
+            if rareza in cartas_por_rareza:
+                cartas_por_rareza[rareza].append((nombre, cantidad, EMOJIS_RAREZA.get(rareza, "")))
+    return cartas_por_rareza
+
+# --- Bot setup ---
+
+intents = discord.Intents.default()
+intents.members = True
+intents.message_content = True
+bot = commands.Bot(command_prefix="!", intents=intents)
+
 @bot.event
 async def on_ready():
-    # Mensaje en consola cuando el bot se conecta correctamente
     print(f"✅ Bot conectado como {bot.user.name}")
 
 @bot.command()
 async def ping(ctx):
-    # Comando simple para comprobar si el bot está activo
     await ctx.send("🏓 ¡Estoy vivo!")
 
 @bot.command(name="carta")
@@ -109,31 +128,48 @@ async def carta(ctx, usuario: discord.Member = None):
     colecciones[user_id][carta["nombre"]] = colecciones[user_id].get(carta["nombre"], 0) + 1
     guardar_colecciones()
 
-    color = colores_rarezas.get(carta.get("rareza", ""), discord.Color.gold())
-    emoji_rareza = emojis_rarezas.get(carta.get("rareza", ""), "")
-    emoji_tipo = emojis_tipos.get(carta.get("tipo", ""), "")
+    embed = crear_embed_carta(carta, usuario)
+    await ctx.send(f"🎁 {usuario.mention} ha recibido una carta:", embed=embed)
+
+@bot.command(name="sobre")
+async def sobre(ctx, usuario: discord.Member = None):
+    # Si no se especifica usuario, se usa el autor
+    if usuario is None:
+        usuario = ctx.author
+
+    # Solo el usuario autorizado puede usar el comando
+    if str(ctx.author.id) != USUARIO_AUTORIZADO:
+        await ctx.send("❌ Solo el usuario autorizado puede usar este comando.")
+        return
+
+    user_id = str(usuario.id)
+    cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=10)
+    colecciones.setdefault(user_id, {})
+    for carta in cartas_sobre:
+        colecciones[user_id][carta["nombre"]] = colecciones[user_id].get(carta["nombre"], 0) + 1
+    guardar_colecciones()
 
     embed = discord.Embed(
-        title="🎴 ¡Has recibido una carta!",
-        description=(
-            f"**`{carta['nombre'].upper()}`**\n"
-            f"🔹 Tipo: **{carta['tipo']}** {emoji_tipo}\n"
-            f"⭐ Rareza: {emoji_rareza} **{carta['rareza']}** {emoji_rareza}\n"
-            f"📝 {carta.get('descripcion', 'Sin descripción.')}"
-        ),
-        color=color  # Color de borde según rareza
+        title=f"🎁 ¡Has abierto un sobre con 10 cartas!",
+        color=discord.Color.orange()
     )
-    if carta.get("imagen"):
-        embed.set_image(url=carta["imagen"])
-
+    for idx, carta in enumerate(cartas_sobre, 1):
+        emoji_rareza = EMOJIS_RAREZA.get(carta.get("rareza", ""), "")
+        emoji_tipo = EMOJIS_TIPOS.get(carta.get("tipo", ""), "")
+        embed.add_field(
+            name=f"Carta {idx}: **`{carta['nombre'].upper()}`**",
+            value=(
+                f"🔹 Tipo: **{carta['tipo']}** {emoji_tipo}\n"
+                f"⭐ Rareza: {emoji_rareza} **{carta['rareza']}** {emoji_rareza}\n"
+                f"📝 {carta.get('descripcion', 'Sin descripción.')}"
+            ),
+            inline=False
+        )
     embed.set_footer(text=f"{usuario.display_name}")
-    await ctx.send(f"🎁 {usuario.mention} ha recibido una carta:", embed=embed)
+    await ctx.send(f"🎁 {usuario.mention} ha recibido un sobre:", embed=embed)
 
 @bot.command(name="coleccion")
 async def coleccion(ctx):
-    global cartas
-
-    # Muestra todas las cartas que tiene el usuario en su colección, agrupando repetidas
     user_id = str(ctx.author.id)
     cartas_usuario = colecciones.get(user_id, {})
 
@@ -141,26 +177,9 @@ async def coleccion(ctx):
         await ctx.send("📭 ¡Todavía no tienes ninguna carta!")
         return
 
-    # Orden de rarezas y sus emojis
-    orden_rareza = ["Común", "Rara", "Legendaria"]
-    emojis_rareza = {
-        "Común": "⚪",
-        "Rara": "🔵",
-        "Legendaria": "🟡"
-    }
-
-    # Agrupa cartas por rareza
-    cartas_por_rareza = {rareza: [] for rareza in orden_rareza}
-    for nombre, cantidad in cartas_usuario.items():
-        carta_info = next((c for c in cartas if c["nombre"] == nombre), None)
-        if carta_info:
-            rareza = carta_info.get("rareza", "Común")
-            if rareza in cartas_por_rareza:
-                cartas_por_rareza[rareza].append((nombre, cantidad, emojis_rareza.get(rareza, "")))
-
-    # Construye la descripción solo con cartas y emoji de rareza, sin titular de rareza
+    cartas_por_rareza = agrupar_cartas_por_rareza(cartas_usuario)
     descripcion = ""
-    for rareza in orden_rareza:
+    for rareza in ORDEN_RAREZA:
         cartas_r = cartas_por_rareza[rareza]
         for nombre, cantidad, emoji in cartas_r:
             if cantidad > 1:
@@ -180,28 +199,7 @@ async def ver_carta(ctx, *, nombre: str):
     user_id = str(ctx.author.id)
     cartas_usuario = colecciones.get(user_id, {})
 
-    # Normaliza el nombre buscado (sin tildes y minúsculas)
-    nombre_normalizado = quitar_tildes(nombre.lower())
-
-    # Busca coincidencias ignorando tildes y mayúsculas/minúsculas
-    coincidencias = [
-        c for c in cartas
-        if quitar_tildes(c["nombre"].lower()).find(nombre_normalizado) != -1
-    ]
-
-    # Buscar coincidencia exacta primero
-    exacta = next(
-        (c for c in cartas if quitar_tildes(c["nombre"].lower()) == nombre_normalizado),
-        None
-    )
-    if exacta:
-        coincidencias = [exacta]
-
-    # Filtra solo cartas que el usuario posee
-    coincidencias = [
-        c for c in coincidencias
-        if c["nombre"] in cartas_usuario and cartas_usuario[c["nombre"]] > 0
-    ]
+    coincidencias = buscar_cartas_usuario(nombre, cartas, cartas_usuario)
 
     if not coincidencias:
         await ctx.send("❌ Solo puedes ver cartas que posees en tu colección.")
@@ -216,75 +214,8 @@ async def ver_carta(ctx, *, nombre: str):
         return
 
     carta = coincidencias[0]
-
-    # Colores por rareza
-    colores_rarezas = {
-        "Común": discord.Color.light_grey(),
-        "Rara": discord.Color.blue(),
-        "Legendaria": discord.Color.gold()
-    }
-    color = colores_rarezas.get(carta.get("rareza", ""), discord.Color.dark_grey())
-
-    emoji_rareza = emojis_rarezas.get(carta.get("rareza", ""), "")
-    emoji_tipo = emojis_tipos.get(carta.get("tipo", ""), "")
-
-    embed = discord.Embed(
-        title=f"🃏 **`{carta['nombre'].upper()}`**",
-        color=color
-    )
-    embed.add_field(name="🔹 Tipo", value=f"**{carta['tipo']}** {emoji_tipo}", inline=True)
-    embed.add_field(name="⭐ Rareza", value=f"{emoji_rareza} **{carta['rareza']}** {emoji_rareza}", inline=True)
-    embed.add_field(name="📝 Descripción", value=carta.get("descripcion", "Sin descripción."), inline=False)
-
-    if carta.get("imagen"):
-        embed.set_image(url=carta["imagen"])
-
-    embed.set_footer(text="Consulta de carta")
+    embed = crear_embed_carta(carta, ctx.author)
     await ctx.send(embed=embed)
-
-@bot.command(name="sobre")
-async def sobre(ctx, usuario: discord.Member = None):
-    # Si no se especifica usuario, se usa el autor
-    if usuario is None:
-        usuario = ctx.author
-
-    # Solo el usuario autorizado puede usar el comando
-    if str(ctx.author.id) != USUARIO_AUTORIZADO:
-        await ctx.send("❌ Solo el usuario autorizado puede usar este comando.")
-        return
-    # Da 10 cartas aleatorias al usuario (pueden repetirse)
-
-    user_id = str(usuario.id)
-    cartas_sobre = random.choices(cartas, weights=pesos_cartas, k=10)
-
-    colecciones.setdefault(user_id, {})
-    for carta in cartas_sobre:
-        colecciones[user_id][carta["nombre"]] = colecciones[user_id].get(carta["nombre"], 0) + 1
-
-    guardar_colecciones()
-
-    embed = discord.Embed(
-        title=f"🎁 ¡Has abierto un sobre con 10 cartas!",
-        color=discord.Color.orange()
-    )
-
-    # Añade cada carta como campo en el embed, sin mostrar imágenes
-    for idx, carta in enumerate(cartas_sobre, 1):
-        color = colores_rarezas.get(carta.get("rareza", ""), discord.Color.gold())
-        emoji_rareza = emojis_rarezas.get(carta.get("rareza", ""), "")
-        emoji_tipo = emojis_tipos.get(carta.get("tipo", ""), "")
-        embed.add_field(
-            name=f"Carta {idx}: **`{carta['nombre'].upper()}`**",
-            value=(
-                f"🔹 Tipo: **{carta['tipo']}** {emoji_tipo}\n"
-                f"⭐ Rareza: {emoji_rareza} **{carta['rareza']}** {emoji_rareza}\n"
-                f"📝 {carta.get('descripcion', 'Sin descripción.')}"
-            ),
-            inline=False
-        )
-
-    embed.set_footer(text=f"{usuario.display_name}")
-    await ctx.send(f"🎁 {usuario.mention} ha recibido un sobre:", embed=embed)
 
 @bot.command(name="intercambiar")
 async def intercambiar(ctx, jugador: discord.Member, carta_mia: str, carta_suya: str):
