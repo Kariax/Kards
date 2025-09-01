@@ -1,0 +1,7 @@
+# Ignora todo por defecto
+*
+
+# ¡Excepto estos archivos y carpetas!
+!.gitignore
+!bot.py
+!resources/
