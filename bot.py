@@ -481,6 +481,109 @@ async def faltantes(ctx, usuario: discord.Member = None):
             else:
                 await mensaje.remove_reaction(reaction, user)
 
+# Comando para comparar colecciones entre dos usuarios
+@bot.command(name="comparar")
+async def comparar(ctx, usuario: discord.Member = None):
+    """
+    Compara la colección del autor con la de otro usuario y muestra:
+    - Cartas que el autor tiene y el otro no.
+    - Cartas que el otro tiene y el autor no.
+    Mostrando la cantidad de cada carta que tiene cada usuario.
+    """
+    if usuario is None:
+        await enviar_error(ctx, "Debes mencionar a otro usuario para comparar colecciones. Ejemplo: `!comparar @usuario`")
+        return
+
+    if usuario.id == ctx.author.id:
+        await enviar_error(ctx, "No puedes comparar tu colección contigo mismo.")
+        return
+
+    user1_id = str(ctx.author.id)
+    user2_id = str(usuario.id)
+    coleccion1 = colecciones.get(user1_id, {})
+    coleccion2 = colecciones.get(user2_id, {})
+    cartas_user1 = set(nombre for nombre, cantidad in coleccion1.items() if cantidad > 0)
+    cartas_user2 = set(nombre for nombre, cantidad in coleccion2.items() if cantidad > 0)
+
+    if not cartas_user1:
+        await enviar_error(ctx, f"{ctx.author.display_name} no tiene cartas en su colección.")
+        return
+    if not cartas_user2:
+        await enviar_error(ctx, f"{usuario.display_name} no tiene cartas en su colección.")
+        return
+
+    solo_user1 = cartas_user1 - cartas_user2
+    solo_user2 = cartas_user2 - cartas_user1
+
+    def lista_cartas(nombres, coleccion):
+        # Ordena por rareza y luego alfabéticamente
+        orden_rareza = ["Legendaria", "Rara", "Común"]
+        resultado = []
+        for rareza in orden_rareza:
+            nombres_rareza = sorted(
+                [c["nombre"] for c in cartas if c["nombre"] in nombres and c["rareza"] == rareza]
+            )
+            for nombre in nombres_rareza:
+                emoji = EMOJIS_RAREZA.get(rareza, "")
+                cantidad = coleccion.get(nombre, 0)
+                resultado.append(f"{emoji} {nombre} x{cantidad}")
+        return resultado if resultado else ["(Ninguna)"]
+
+    paginas = [
+        {
+            "titulo": f"✅ Cartas que **{ctx.author.display_name}** tiene y **{usuario.display_name}** no",
+            "contenido": lista_cartas(solo_user1, coleccion1)
+        },
+        {
+            "titulo": f"✅ Cartas que **{usuario.display_name}** tiene y **{ctx.author.display_name}** no",
+            "contenido": lista_cartas(solo_user2, coleccion2)
+        }
+    ]
+    total_paginas = len(paginas)
+
+    def crear_embed_pagina(idx):
+        embed = discord.Embed(
+            title=f"🔍 Comparación de colecciones",
+            description=f"{ctx.author.display_name} vs {usuario.display_name}",
+            color=discord.Color.teal()
+        )
+        embed.add_field(
+            name=paginas[idx]["titulo"],
+            value="\n".join(paginas[idx]["contenido"])[:1024],
+            inline=False
+        )
+        embed.set_footer(text=f"Página {idx+1}/{total_paginas}")
+        return embed
+
+    pagina_actual = 0
+    mensaje = await ctx.send(embed=crear_embed_pagina(pagina_actual))
+
+    if total_paginas > 1:
+        await mensaje.add_reaction("⬅️")
+        await mensaje.add_reaction("➡️")
+
+        def check(reaction, user):
+            return (
+                user == ctx.author and str(reaction.emoji) in ["⬅️", "➡️"] and reaction.message.id == mensaje.id
+            )
+
+        while True:
+            try:
+                reaction, user = await bot.wait_for("reaction_add", timeout=60.0, check=check)
+            except asyncio.TimeoutError:
+                break
+
+            if str(reaction.emoji) == "➡️" and pagina_actual < total_paginas - 1:
+                pagina_actual += 1
+                await mensaje.edit(embed=crear_embed_pagina(pagina_actual))
+                await mensaje.remove_reaction(reaction, user)
+            elif str(reaction.emoji) == "⬅️" and pagina_actual > 0:
+                pagina_actual -= 1
+                await mensaje.edit(embed=crear_embed_pagina(pagina_actual))
+                await mensaje.remove_reaction(reaction, user)
+            else:
+                await mensaje.remove_reaction(reaction, user)
+
 # Sobrescribe el comando help por defecto antes de definir el tuyo
 bot.remove_command("help")
 
@@ -494,6 +597,7 @@ async def help_command(ctx):
         "• `!intercambiar @usuario \"mi_carta\" \"su_carta\"` — Propón un intercambio de cartas con otro usuario. Ejemplo: `!intercambiar @Kariax \"Goblin\" \"Lobo\"`\n"
         "• `!resumen` — Muestra un resumen de tu colección y la distribución de rarezas.\n"
         "• `!falta [@usuario]` — Muestra las cartas que te faltan para completar la colección (o las de otro usuario), con paginación.\n"
+        "• `!comparar @usuario` — Compara tu colección con la de otro usuario y muestra las diferencias.\n"
         "• `!help` — Muestra este mensaje de ayuda.\n"
     )
     embed = discord.Embed(
