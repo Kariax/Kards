@@ -5,3 +5,5 @@
 !.gitignore
 !bot.py
 !resources/
+!LICENSE
+!README.md
