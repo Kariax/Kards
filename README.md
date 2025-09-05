@@ -172,9 +172,24 @@ Kards/
   "tipo": "Bestiario",
   "rareza": "Común",
   "descripcion": "Una criatura traviesa y escurridiza.",
-  "imagen": "resources/logo/goblin.png"
+  "imagen": "resources/imagenes/goblin.png"
 }
 ```
+
+> El campo `"imagen"` puede ser tanto una ruta local (como en el ejemplo anterior) como una URL externa.  
+> Por ejemplo:
+>
+> ```json
+> {
+>   "nombre": "Goblin",
+>   "tipo": "Bestiario",
+>   "rareza": "Común",
+>   "descripcion": "Una criatura traviesa y escurridiza.",
+>   "imagen": "https://i.imgur.com/ejemplo.png"
+> }
+> ```
+>
+> Esto permite mostrar imágenes alojadas en servicios externos como Imgur o Discord
 
 ---
 
