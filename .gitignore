@@ -4,6 +4,7 @@
 # ¡Excepto estos archivos y carpetas!
 !.gitignore
 !bot.py
+!requirements.txt
 !resources/
 !LICENSE
 !README.md
