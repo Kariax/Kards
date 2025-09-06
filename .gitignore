@@ -5,6 +5,6 @@
 !.gitignore
 !bot.py
 !requirements.txt
-!resources/
+!resources/**
 !LICENSE
 !README.md
