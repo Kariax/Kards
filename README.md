@@ -14,7 +14,6 @@
 - [Estructura del Proyecto](#-estructura-del-proyecto)
 - [Rarezas y Tipos de Cartas](#-rarezas-y-tipos-de-cartas)
 - [Ejemplo de Carta](#-ejemplo-de-carta)
-- [Explicación sobre Keep Alive y Hosting](#-explicación-sobre-keep-alive-y-hosting)
 - [Licencia](#-licencia)
 - [Créditos](#-créditos)
 
@@ -69,7 +68,7 @@ Antes de la instalación, necesitas crear una aplicación y bot en el [Portal de
    pip install -r requirements.txt
    ```
 
-   > **Nota:** Las dependencias principales son `discord.py`, `python-dotenv` y `flask`.
+   > **Nota:** Las dependencias principales son `discord.py` y `python-dotenv`.
 
 3. **Configura el archivo `.env`:**
 
@@ -128,7 +127,6 @@ Kards/
 ├── .env                  # Variables de entorno (token de Discord)
 ├── LICENSE               # Licencia del proyecto
 ├── README.md             # Este archivo
-├── keep_alive.py         # Script para mantener el bot online en algunos hostings
 ├── requirements.txt      # Dependencias del proyecto
 └── resources/
     └── logo/
@@ -193,17 +191,6 @@ Kards/
 > ```
 >
 > Esto permite mostrar imágenes alojadas en servicios externos como Imgur o Discord
-
----
-
-## 🖥️ Explicación sobre Keep Alive y Hosting
-
-### ¿Por qué existe `keep_alive.py` y el uso de Flask?
-
-Para facilitar el hosting del bot en plataformas gratuitas o de bajo coste (como Railway, Replit, etc.), se ha añadido el archivo [`keep_alive.py`](keep_alive.py). Este archivo crea un pequeño servidor web usando Flask que responde en el puerto 8080. Su objetivo es:
-
-- **Evitar que el bot sea "dormido" por el proveedor:** Algunos servicios de hosting gratuitos cierran procesos inactivos. Al exponer un endpoint web, puedes usar servicios externos (como UptimeRobot) para hacer peticiones periódicas y mantener el bot activo.
-- **Permitir monitorización:** Puedes comprobar fácilmente si el bot está online accediendo a la URL del servidor.
 
 ---
 

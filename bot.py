@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 import asyncio
 from collections import Counter
 import unicodedata
-from keep_alive import keep_alive
 
 # --- Configuración y utilidades globales ---
 
@@ -607,7 +606,5 @@ async def help_command(ctx):
         color=discord.Color.green()
     )
     await ctx.send(embed=embed)
-# LLAMADA AL SERVIDOR WEB PARA MANTENER EL BOT ONLINE
-keep_alive()
 # Inicia el bot con el token de Discord
 bot.run(TOKEN)
