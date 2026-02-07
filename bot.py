@@ -12,7 +12,7 @@ import unicodedata
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
-USUARIO_AUTORIZADO = "189137793501364224"
+USUARIOS_AUTORIZADOS = ["189137793501364224", "1469686581873868822"]  # Reemplaza con los IDs de los usuarios autorizados
 
 # Emojis y colores por rareza y tipo
 EMOJIS_RAREZA = {"Común": "⚪", "Rara": "🔵", "Legendaria": "🟡"}
@@ -111,10 +111,100 @@ async def on_ready():
 async def ping(ctx):
     await ctx.send("🏓 ¡Estoy vivo!")
 
+
+@bot.event
+async def on_message(message):
+    # Process commands from incoming messages.
+    # If the message was sent by this bot, only process it when it starts with the command prefix ('!').
+    # This allows webhook messages sent by the bot to trigger commands while avoiding most loops.
+    try:
+        content = message.content or ""
+    except Exception:
+        content = ""
+
+    if content.lstrip().startswith("!"):
+        try:
+            ctx = await bot.get_context(message)
+            if ctx.command is not None:
+                try:
+                    can_run = await ctx.command.can_run(ctx)
+                except Exception:
+                    can_run = False
+                # If the message comes from a webhook or a bot and checks pass, invoke manually
+                if (getattr(message, 'webhook_id', None) or getattr(message.author, 'bot', False)) and can_run:
+                    try:
+                        await bot.invoke(ctx)
+                    except Exception:
+                        pass
+                    return
+        except Exception:
+            pass
+
+    if message.author == bot.user:
+        if not content.lstrip().startswith("!"):
+            return
+
+    await bot.process_commands(message)
+
+
+@bot.event
+async def on_command_error(ctx, error):
+    try:
+        await ctx.send(f"❌ Ocurrió un error ejecutando el comando: {error}")
+    except Exception:
+        pass
+
 def solo_autorizado():
     def predicate(ctx):
-        return str(ctx.author.id) == USUARIO_AUTORIZADO
+        result = False
+        try:
+            # Direct authorized users
+            if str(getattr(ctx.author, 'id', None)) in USUARIOS_AUTORIZADOS:
+                result = True
+            else:
+                content = (ctx.message.content or "").lstrip()
+                # Allow this bot (or webhooks) to invoke commands when the message starts with the prefix
+                if ctx.author == bot.user and content.startswith("!"):
+                    result = True
+                if getattr(ctx.message, "webhook_id", None) and content.startswith("!"):
+                    result = True
+        except Exception:
+            result = False
+        return result
     return commands.check(predicate)
+
+
+async def resolve_member(ctx, usuario_input):
+    """Resolve a user input (mention, id, name) to a `discord.Member`.
+    Returns `None` if not found.
+    """
+    if usuario_input is None:
+        return ctx.author
+    if isinstance(usuario_input, discord.Member):
+        return usuario_input
+    from discord.ext.commands import MemberConverter
+    converter = MemberConverter()
+    try:
+        member = await converter.convert(ctx, str(usuario_input))
+        return member
+    except Exception:
+        pass
+    # Try extract numeric ID from the input
+    import re
+    m = re.search(r"(\d{17,20})", str(usuario_input))
+    if m and ctx.guild:
+        try:
+            member = ctx.guild.get_member(int(m.group(1))) or await ctx.guild.fetch_member(int(m.group(1)))
+            if member:
+                return member
+        except Exception:
+            pass
+    # Fallback: match by name or display_name
+    if ctx.guild:
+        for member in ctx.guild.members:
+            if member.display_name == usuario_input or member.name == usuario_input:
+                return member
+    return None
 
 # Función utilitaria para enviar errores como embed
 async def enviar_error(ctx, mensaje):
@@ -127,10 +217,12 @@ async def enviar_error(ctx, mensaje):
 
 @bot.command(name="carta")
 @solo_autorizado()
-async def carta(ctx, usuario: discord.Member = None):
-    # Si no se especifica usuario, se usa el autor
+async def carta(ctx, usuario_input: str = None):
+    # Resolve the target member (accept mention, id, name, or None for author)
+    usuario = await resolve_member(ctx, usuario_input)
     if usuario is None:
-        usuario = ctx.author
+        await enviar_error(ctx, "No pude encontrar al usuario especificado.")
+        return
 
     user_id = str(usuario.id)
     try:
@@ -147,10 +239,12 @@ async def carta(ctx, usuario: discord.Member = None):
 
 @bot.command(name="sobre")
 @solo_autorizado()
-async def sobre(ctx, usuario: discord.Member = None):
-    # Si no se especifica usuario, se usa el autor
+async def sobre(ctx, usuario_input: str = None):
+    # Resolve the target member (accept mention, id, name, or None for author)
+    usuario = await resolve_member(ctx, usuario_input)
     if usuario is None:
-        usuario = ctx.author
+        await enviar_error(ctx, "No pude encontrar al usuario especificado.")
+        return
 
     user_id = str(usuario.id)
     try:

@@ -78,13 +78,16 @@ Antes de la instalación, necesitas crear una aplicación y bot en el [Portal de
    DISCORD_TOKEN=tu_token_de_discord_aquí
    ```
 
-4. **Configura el administrador del bot:**
+4. **Configura los administradores del bot:**
 
    En el archivo `bot.py`, busca la línea:
    ```python
-   USUARIO_AUTORIZADO = "189137793501364224"
+   USUARIOS_AUTORIZADOS = ["189137793501364224"]
    ```
-   y reemplaza el valor por el ID de usuario de Discord del administrador de tu bot.
+   y añade o reemplaza los IDs de usuario de Discord de los administradores de tu bot. Puedes añadir múltiples usuarios en la lista:
+   ```python
+   USUARIOS_AUTORIZADOS = ["189137793501364224", "987654321098765432", "123456789123456789"]
+   ```
 
 5. **Ejecuta el bot:**
    ```sh
